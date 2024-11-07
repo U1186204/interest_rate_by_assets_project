@@ -24,14 +24,23 @@ df_gld_by_ir = pd.merge(df_gld, df_ir, left_on="date", right_on="DATE", how="inn
 df_gld_by_ir.set_index("date", inplace=True)
 
 # Resample data to yearly frequency and calculate the mean for each year
-df_resampled = df_gld_by_ir.resample("YE").mean().reset_index()
+df_resampled_yoy = df_gld_by_ir.resample("YE").mean().reset_index()
+df_resampled_mom = (
+    df_gld_by_ir.resample("ME").mean().reset_index()  # Monthly for MoM charts
+)
 
 
 # Define a function to create and save the plot for a given date range
 def create_and_save_plot(
-    data, start_year, end_year, title, filename, yoy_annotations=False
+    data,
+    start_year,
+    end_year,
+    title,
+    filename,
+    yoy_annotations=False,
+    resample_type="yoy",
 ):
-    # Filter data for the specified date range
+    # Select data type based on resample type
     data_filtered = data[
         (data["date"].dt.year >= start_year) & (data["date"].dt.year <= end_year)
     ]
@@ -77,24 +86,25 @@ def create_and_save_plot(
     ax2.set_ylabel("Interest Rate (%)", color="white")
     ax2.tick_params(axis="y", labelcolor="white")
 
-    # Add a legend that includes both lines
+    # Add a legend with a white background
     lines, labels = ax1.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
-    ax1.legend(
+    legend = ax1.legend(
         lines + lines2,
         labels + labels2,
         loc="upper left",
         fontsize=10,
-        facecolor="black",
-        edgecolor="black",
+        facecolor="white",  # Set the background of the legend to white
+        edgecolor="white",
     )
 
     # Set title color to white
     plt.title(title, color="white")
 
-    # Add year-on-year annotations for gold and interest rates if specified
+    # Add year-on-year annotations for gold and month-over-month for interest rates in shorter charts if specified
     if yoy_annotations:
-        for i, row in data_filtered.iterrows():
+        yearly_data = data_filtered[data_filtered["date"].dt.is_year_start]
+        for i, row in yearly_data.iterrows():
             # Annotate gold price
             ax1.annotate(
                 f"{row['real']:.0f}",
@@ -127,15 +137,18 @@ def create_and_save_plot(
 
 
 # Create and save the four required plots
+# YoY for full data
 create_and_save_plot(
-    df_resampled,
+    df_resampled_yoy,
     1950,
     2023,
     "Gold Prices and Interest Rates Over Time",
     "gold_interest_full",
 )
+
+# MoM for the other 3-year subperiods, but show only YoY annotations
 create_and_save_plot(
-    df_resampled,
+    df_resampled_mom,
     1970,
     1980,
     "Gold Prices and Interest Rates (1970-1980)",
@@ -143,7 +156,7 @@ create_and_save_plot(
     yoy_annotations=True,
 )
 create_and_save_plot(
-    df_resampled,
+    df_resampled_mom,
     1980,
     1985,
     "Gold Prices and Interest Rates (1980-1985)",
@@ -151,7 +164,7 @@ create_and_save_plot(
     yoy_annotations=True,
 )
 create_and_save_plot(
-    df_resampled,
+    df_resampled_mom,
     2008,
     2012,
     "Gold Prices and Interest Rates (2008-2012)",
